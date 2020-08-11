@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CRUD flask</title>
+</head>
+<body>
+  <h1>Options</h1>
+  /list - List all if passed without state<br>
+  /list/SP - List all students filter by state = SP (or others)<br>
+  /create - Create a student by giving a JSON body {"name": "some_name", "cpf": 123, "state": "SP"}<br>
+  /delete - Delete a student with cpf passing a body in format {"cpf": valid_number}<br>
+  /update - Update all data from student with cpf field {"name": "new_name", "cpf": 123, "state": "SC"}
+    
+</body>
+</html>

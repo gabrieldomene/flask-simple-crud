@@ -1,24 +1,30 @@
-from flask import ( Flask, request )
+from flask import ( Flask, request, redirect, url_for, render_template )
 import sqlite3
 
-def create_conn(db):
-    conn = None
-    try:
-        conn = sqlite3.connect(db)
-    except Error as e:
-        print(e)
+class database:
+    def __init__(self, name):
+        self.name = name
+    
+    def connect(self):
+        conn = None
+        try:
+            conn = sqlite3.connect(self.name)
+            return conn
+        except Error as e:
+            print(e)
 
-    return conn
+db = database('./database/database.db')
 
 def update_student(conn, new_name, state, cpf):
     c = conn.cursor()
-    c.execute("""UPDATE students SET name=?, state=? WHERE cpf=?""", (new_name, state, cpf))
-    conn.commit()
+    match = c.execute("""SELECT EXISTS(SELECT 1 FROM students WHERE cpf=?)""", (cpf, ))
+    if bool(match.fetchone()[0]):
+        c.execute("""UPDATE students SET name=?, state=? WHERE cpf=?""", (new_name, state, cpf))
+        conn.commit()
 
-def create_student(conn, student):
+def create_student(conn, name, cpf, state):
     c = conn.cursor()
-    sql = """INSERT INTO students VALUES (?, ?, ?)"""
-    c.execute(sql, student)
+    c.execute("""INSERT INTO students VALUES(?, ?, ?)""", (name, cpf, state))
     conn.commit()
 
 def delete_student(conn, cpf):
@@ -26,20 +32,7 @@ def delete_student(conn, cpf):
     c.execute("""DELETE FROM students WHERE cpf=?""", (cpf, ))
     conn.commit()
 
-app = Flask(__name__)
-
-@app.route('/')
-def index():
-    return """/list - List all
-/create?name=abc&cpf=123&state=ab - Create a student (name, cpf, state)
-/delete?cpf=123 - Delete a student with cpf
-/update?cpf=123&name=new_name&state=new_state - Update a student with cpf
-    """
-
-@app.route("/list/", defaults={"uf": None})
-@app.route('/list/<uf>', methods=['GET'])
-def listar(uf):
-    conn = create_conn('./database/database.db')
+def list_students(conn, uf):
     c = conn.cursor()
     data = {}
     if uf != None:
@@ -49,51 +42,66 @@ def listar(uf):
     else:
         for idx, row in enumerate(c.execute('SELECT * FROM students')):
             data.update({idx: {'name': row[0], 'cpf': row[1], 'state': row[2]}})
-    conn.close()
     return data
+
+app = Flask(__name__)
+
+@app.route('/')
+def index():
+    return render_template('./index.html'), 300
+
+@app.route("/list/", defaults={"uf": None})
+@app.route('/list/<uf>', methods=['GET'])
+def listar(uf):
+    conn = db.connect()
+    data = list_students(conn, uf)
+    conn.close()
+    return data, 200
 
 @app.route('/create', methods=['POST'])
 def create():
-    conn = create_conn('./database/database.db')
     data = request.get_json()
 
     name = data['name'].capitalize()
     cpf = data['cpf']
     state = data['state'].upper()
-
-    create_student(conn, student)
+    conn = db.connect()
+    try:
+        create_student(conn, name, cpf, state)
+    except sqlite3.IntegrityError as err:
+        return 'CPF already in DB', 409
     conn.close()
 
-    return data
+    return data, 201
 
 @app.route('/update', methods=['PUT'])
 def update():
-    conn = create_conn('./database/database.db')
     data = request.get_json()
 
     new_name = data['name'].capitalize()
     cpf = data['cpf']
     new_state = data['state'].upper()
-
+    conn = db.connect()
     update_student(conn, new_name, new_state, cpf)
     conn.close()
 
-    return data
+    return data, 204
 
 @app.route('/delete', methods=['DELETE'])
 def delete():
-    conn = create_conn('./database/database.db')
     data = request.get_json()
 
     cpf = data['cpf']
-    print(type(cpf))
+    conn = db.connect()
     delete_student(conn, cpf)
     conn.close()
 
-    return data
+    return data, 200
+
+@app.errorhandler(404)
+def page_not_foun(e):
+    return redirect(url_for('index'))
 
 
 if __name__ == '__main__':
     app.run(debug=True)
-
-
