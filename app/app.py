@@ -65,6 +65,11 @@ def create():
     name = data['name'].capitalize()
     cpf = data['cpf']
     state = data['state'].upper()
+    
+    for key in data:
+        if data[key] == '':
+            return data, 404
+
     conn = db.connect()
     try:
         create_student(conn, name, cpf, state)
@@ -81,6 +86,11 @@ def update():
     new_name = data['name'].capitalize()
     cpf = data['cpf']
     new_state = data['state'].upper()
+    
+    for key in data:
+        if data[key] == '':
+            return data, 404
+
     conn = db.connect()
     update_student(conn, new_name, new_state, cpf)
     conn.close()
